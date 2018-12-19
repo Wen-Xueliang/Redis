@@ -1,4 +1,4 @@
-package eng.lab.entity;
+package eng.lab.delayQueen.entity;
 
 import lombok.Data;
 

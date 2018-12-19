@@ -1,7 +1,8 @@
 package eng.lab.util;
 
 import com.alibaba.fastjson.JSON;
-import eng.lab.entity.Order;
+import eng.lab.delayQueen.entity.Order;
+import eng.lab.delayQueen.util.RedisToolForDelayQueen;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -9,7 +10,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 import redis.clients.jedis.Jedis;
 
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -46,13 +46,13 @@ public class RedisToolTests {
         String requestId = UUID.randomUUID().toString();
         int expireTime = 1000000;
 
-        if(!RedisTool.tryGetDistributedLock(jedis, lockKey, requestId, expireTime)) {
+        if(!RedisToolForDelayQueen.tryGetDistributedLock(jedis, lockKey, requestId, expireTime)) {
             throw new Exception("get error!");
         }
 
         Thread.sleep(50000);
 
-        if(!RedisTool.releaseDistributedLock(jedis, lockKey, requestId)) {
+        if(!RedisToolForDelayQueen.releaseDistributedLock(jedis, lockKey, requestId)) {
             throw new Exception("release error!");
         }
     }
@@ -62,7 +62,7 @@ public class RedisToolTests {
 
         Jedis jedis = new Jedis(IP, PORT);
         for(int i = 0; i < 100; i++) {
-            Order order = new Order("id" + i, "user" + i, "trade" + i, RedisTool.randomDate("2018-10-20", "2018-11-20"));
+            Order order = new Order("id" + i, "user" + i, "trade" + i, RedisToolForDelayQueen.randomDate("2018-10-20", "2018-11-20"));
             jedis.set("id" + i, JSON.toJSONString(order));
             jedis.zadd("delayQueen", Double.valueOf(String.valueOf(order.getCreateDate().getTime())).doubleValue(), order.getId());
         }
@@ -77,7 +77,7 @@ public class RedisToolTests {
                 Jedis jedis1 = new Jedis(IP, PORT);
                 Date nextDate = getNextDate(jedis1.get("excDate"));
                 jedis1.set("excDate", String.valueOf(nextDate.getTime()));
-                RedisTool.pushQueenIfTime(jedis1, nextDate);
+                RedisToolForDelayQueen.pushQueenIfTime(jedis1, nextDate);
                 jedis1.close();
             }
         }, 0, 10000);
@@ -87,9 +87,9 @@ public class RedisToolTests {
             public void run() {
 
                 Jedis jedis2 = new Jedis(IP, PORT);
-                Order order = RedisTool.popQueen(jedis2);
+                Order order = RedisToolForDelayQueen.popQueen(jedis2);
                 if(null != order) {
-                    RedisTool.doNotify(order);
+                    RedisToolForDelayQueen.doNotify(order);
                 }
                 jedis2.close();
             }
