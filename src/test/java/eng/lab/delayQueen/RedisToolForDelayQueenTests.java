@@ -1,9 +1,9 @@
-package eng.lab.util;
+package eng.lab.delayQueen;
 
 import com.alibaba.fastjson.JSON;
+import eng.lab.common.CommonRedisTool;
 import eng.lab.delayQueen.entity.Order;
 import eng.lab.delayQueen.util.RedisToolForDelayQueen;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,45 +18,19 @@ import java.util.*;
  */
 @RunWith(SpringRunner.class)
 @SpringBootTest
-public class RedisToolTests {
-
-    public final static String IP = "172.29.1.122";
-    public final static int PORT = 6379;
-
-    @Before
-    public void pingRedis() throws Exception {
-
-        Jedis jedis = new Jedis(IP, PORT);
-        if(!"PONG".equals(jedis.ping())) {
-            throw new Exception("ping error!");
-        }
-    }
+public class RedisToolForDelayQueenTests extends CommonRedisTool {
 
     /**
-    互斥性。在任意时刻，只有一个客户端能持有锁。
-    不会发生死锁。即使有一个客户端在持有锁的期间崩溃而没有主动解锁，也能保证后续其他客户端能加锁。
-    具有容错性。只要大部分的Redis节点正常运行，客户端就可以加锁和解锁。
-    解铃还须系铃人。加锁和解锁必须是同一个客户端，客户端自己不能把别人加的锁给解了。
+     * 用Map来存储元数据。id作为key,整个消息结构序列化(json/…)之后作为value,放入元消息池中。
+     * 将id放入其中(有N个)一个zset有序列表中,以createTime+delay+priority作为score。修改状态为正在延迟中
+     * 使用timer实时监控zset有序列表中top 10的数据 。 如果数据score<=当前时间毫秒就取出来,根据topic重新放入一个新的可消费列表(list)中,在zset中删除已经取出来的数据,并修改状态为待消费
+     * 客户端获取数据只需要从可消费队列中获取就可以了。并且状态必须为待消费 运行时间需要<=当前时间的 如果不满足 重新放入zset列表中,修改状态为正在延迟。如果满足修改状态为已消费。或者直接删除元数据。
      */
-    @Test
-    public void testDistributedLock() throws Exception {
 
-        Jedis jedis = new Jedis(IP, PORT);
-        String lockKey = "DLock";
-        String requestId = UUID.randomUUID().toString();
-        int expireTime = 1000000;
-
-        if(!RedisToolForDelayQueen.tryGetDistributedLock(jedis, lockKey, requestId, expireTime)) {
-            throw new Exception("get error!");
-        }
-
-        Thread.sleep(50000);
-
-        if(!RedisToolForDelayQueen.releaseDistributedLock(jedis, lockKey, requestId)) {
-            throw new Exception("release error!");
-        }
-    }
-
+    /**
+     *
+     * @throws Exception
+     */
     @Test
     public void testDelayQueen() throws Exception {
 
