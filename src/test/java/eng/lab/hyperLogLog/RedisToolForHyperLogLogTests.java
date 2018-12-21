@@ -1,4 +1,4 @@
-package eng.lab.delayQueen;
+package eng.lab.hyperLogLog;
 
 import com.alibaba.fastjson.JSON;
 import eng.lab.common.CommonRedisTool;
@@ -18,21 +18,55 @@ import java.util.*;
  */
 @RunWith(SpringRunner.class)
 @SpringBootTest
-public class RedisToolForDelayQueenTests extends CommonRedisTool {
+public class RedisToolForHyperLogLogTests extends CommonRedisTool {
 
     /**
-     * 用Map来存储元数据。id作为key,整个消息结构序列化(json/…)之后作为value,放入元消息池中。
-     * 将id放入其中(有N个)一个zset有序列表中,以createTime+delay+priority作为score。修改状态为正在延迟中
-     * 使用timer实时监控zset有序列表中top 10的数据 。 如果数据score<=当前时间毫秒就取出来,根据topic重新放入一个新的可消费列表(list)中,在zset中删除已经取出来的数据,并修改状态为待消费
-     * 客户端获取数据只需要从可消费队列中获取就可以了。并且状态必须为待消费 运行时间需要<=当前时间的 如果不满足 重新放入zset列表中,修改状态为正在延迟。如果满足修改状态为已消费。或者直接删除元数据。
+     * 在使用新闻客户端看新闻时，它会给我们不停地推荐新的内容，它每次推荐时要去重，去掉那些已经看过的内容
      */
+    /**
+     * 1000,100,1
+     * 10000,1000,25
+     * 50000,5000,558
+     * 80000,8000,1169
+     * 100000,10000,1478
+     * 1000000,100000,479533ms
+     */
+    @Test
+    public void testNormal() {
+        List<String> allRead = new ArrayList<>();
+        List<String> isRead = new ArrayList<>();
+        List<String> noRead = new ArrayList<>();
+
+        int isReadNum = 100000;
+        int allReadNum = isReadNum*10;
+
+        for(int i = 0; i < isReadNum; i ++) {
+            allRead.add(String.valueOf(i));
+            isRead.add(String.valueOf(i));
+        }
+        for(int i = isReadNum; i < allReadNum; i ++) {
+            allRead.add(String.valueOf(i));
+        }
+
+        long start = System.currentTimeMillis();
+        for(String record : allRead) {
+            if(!isRead.contains(record)) {
+                noRead.add(record);
+            }
+        }
+        long end = System.currentTimeMillis();
+        System.out.println("need Time:" + (end - start) + "ms");
+        /*System.out.println("allRead:" + allRead);
+        System.out.println("isRead:" + isRead);
+        System.out.println("noRead:" + noRead);*/
+    }
 
     /**
      *
      * @throws Exception
      */
     @Test
-    public void testDelayQueen() throws Exception {
+    public void testHyperLogLog() throws Exception {
 
         Jedis jedis = new Jedis(IP, PORT);
         for(int i = 0; i < 100; i++) {

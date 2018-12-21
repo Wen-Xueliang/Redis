@@ -13,7 +13,7 @@ import java.util.Set;
  */
 public class RedisToolForBitMap {
 
-    public static void pushQueenIfTime(Jedis jedis, Date excDate) {
+    public static void setBitMap(Jedis jedis, Date excDate) {
         Set<String> set = jedis.zrangeByScore("delayQueen", "1539619200000", String.valueOf(excDate.getTime()));
         System.out.println(set);
         jedis.zremrangeByScore("delayQueen", "1539619200000", String.valueOf(excDate.getTime()));
