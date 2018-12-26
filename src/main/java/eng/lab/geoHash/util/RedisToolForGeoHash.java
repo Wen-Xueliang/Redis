@@ -3,6 +3,7 @@ package eng.lab.geoHash.util;
 import redis.clients.jedis.GeoRadiusResponse;
 import redis.clients.jedis.GeoUnit;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.params.geo.GeoRadiusParam;
 
 import java.util.Date;
 import java.util.List;
@@ -17,9 +18,8 @@ public class RedisToolForGeoHash {
      *
      * @param jedis
      */
-    public static List<GeoRadiusResponse> queryResturan(Jedis jedis, double longitude, double latitude) {
-        List<GeoRadiusResponse> shenzhen = jedis.georadius("shenzhen", longitude, latitude, 1000, GeoUnit.KM);
+    public static List<GeoRadiusResponse> queryResturan(Jedis jedis, double longitude, double latitude, double radius) {
+        List<GeoRadiusResponse> shenzhen = jedis.georadius("shenzhen-resturant", longitude, latitude, radius, GeoUnit.KM, GeoRadiusParam.geoRadiusParam().withDist());
         return shenzhen;
-
     }
 }
