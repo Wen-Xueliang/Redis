@@ -7,6 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 import redis.clients.jedis.Jedis;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.BitSet;
 import java.util.Date;
@@ -23,13 +24,23 @@ public class RedisToolForBitMapTests extends CommonRedisTool {
      */
     @Test
     public void testBitMap() throws Exception {
-        Jedis jedis = new Jedis(IP, PORT);
 
         long initUserNum = 100;
         final int songNum = 10;
         final int dayNum = 5;
 
-        /*SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+        initData(dayNum, initUserNum, songNum);
+
+        printByDay(dayNum, songNum);
+
+        printBySong(dayNum, songNum);
+
+    }
+
+    public void initData(int dayNum, long initUserNum, int songNum) throws ParseException {
+
+        Jedis jedis = new Jedis(IP, PORT);
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
         Date start = format.parse("2018-10-15");
         jedis.set("excDate", String.valueOf(start.getTime()));
 
@@ -38,13 +49,19 @@ public class RedisToolForBitMapTests extends CommonRedisTool {
             jedis.set("excDate", String.valueOf(nextDate.getTime()));
             long userNum = initUserNum * day;
             for (int song = 1; song < songNum; song++) {
-                for(long user = 1; user < userNum; user++) {
+                for(long user = 1; user < userNum; user++) { //在第day天，song歌被听了userNum次
                     long userId = (long)(Math.random() * userNum);
                     //System.out.println("day:" + format.format(nextDate)+";song:" + song + "userid :" + userId);
                     jedis.setbit("song"+song+":"+format.format(nextDate), userId, true);
                 }
             }
-        }*/
+        }
+        jedis.close();
+    }
+
+    public void printByDay(int dayNum, int songNum) throws ParseException {
+
+        Jedis jedis = new Jedis(IP, PORT);
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
         Date start = format.parse("2018-10-15");
         jedis.set("excDate", String.valueOf(start.getTime()));
@@ -53,9 +70,7 @@ public class RedisToolForBitMapTests extends CommonRedisTool {
             BitSet daySet = new BitSet();
             Date nextDate = getNextDate(jedis.get("excDate"));
             jedis.set("excDate", String.valueOf(nextDate.getTime()));
-            long userNum = initUserNum * day;
-            for (int song = 1; song < songNum; song++) {
-
+            for (int song = 1; song < songNum; song++) { //获取第day天song歌的统计
                 byte[] loginByte = jedis.get(("song"+song+":"+format.format(nextDate)).getBytes());
                 if(null != loginByte) {
                     BitSet bitSet = BitSet.valueOf(loginByte);
@@ -65,7 +80,14 @@ public class RedisToolForBitMapTests extends CommonRedisTool {
             }
             System.out.println("day:" + format.format(nextDate)+";count:" + daySet.cardinality());
         }
+        jedis.close();
+    }
 
+    public void printBySong(int dayNum, int songNum) throws ParseException {
+
+        Jedis jedis = new Jedis(IP, PORT);
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+        Date start = format.parse("2018-10-15");
         jedis.set("excDate", String.valueOf(start.getTime()));
         for (int song = 1; song < songNum; song++) {
             BitSet songSet = new BitSet();
@@ -73,7 +95,6 @@ public class RedisToolForBitMapTests extends CommonRedisTool {
             for(int day = 1; day < dayNum; day++) {
                 Date nextDate = getNextDate(jedis.get("excDate"));
                 jedis.set("excDate", String.valueOf(nextDate.getTime()));
-                long userNum = initUserNum * day;
                 byte[] loginByte = jedis.get(("song"+song+":"+format.format(nextDate)).getBytes());
                 if(null != loginByte) {
                     BitSet bitSet = BitSet.valueOf(loginByte);
@@ -82,10 +103,7 @@ public class RedisToolForBitMapTests extends CommonRedisTool {
             }
             System.out.println("song:" + song+";count:" + songSet.cardinality());
         }
-
-        System.out.println(all.cardinality());
-
-
+        jedis.close();
     }
 
 }

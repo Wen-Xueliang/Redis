@@ -10,6 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 import redis.clients.jedis.Jedis;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -28,18 +29,32 @@ public class RedisToolForDelayQueenTests extends CommonRedisTool {
      */
 
     /**
-     *
+     * 1天后自动通知
      * @throws Exception
      */
     @Test
     public void testDelayQueen() throws Exception {
+        initData();
 
+        pushQueen();
+
+        popQueen();
+
+        while(true) {}
+    }
+
+    public void initData() {
         Jedis jedis = new Jedis(IP, PORT);
         for(int i = 0; i < 100; i++) {
             Order order = new Order("id" + i, "user" + i, "trade" + i, RedisToolForDelayQueen.randomDate("2018-10-20", "2018-11-20"));
             jedis.set("id" + i, JSON.toJSONString(order));
             jedis.zadd("delayQueen", Double.valueOf(String.valueOf(order.getCreateDate().getTime())).doubleValue(), order.getId());
         }
+        jedis.close();
+    }
+
+    public void pushQueen() throws ParseException { //将符合的数据放入队列中
+        Jedis jedis = new Jedis(IP, PORT);
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
         Date start = format.parse("2018-10-15");
         jedis.set("excDate", String.valueOf(start.getTime()));
@@ -47,29 +62,28 @@ public class RedisToolForDelayQueenTests extends CommonRedisTool {
         new Timer().schedule(new TimerTask() {
             @Override
             public void run() {
-
-                Jedis jedis1 = new Jedis(IP, PORT);
-                Date nextDate = getNextDate(jedis1.get("excDate"));
-                jedis1.set("excDate", String.valueOf(nextDate.getTime()));
-                RedisToolForDelayQueen.pushQueenIfTime(jedis1, nextDate);
-                jedis1.close();
+                Jedis jedis = new Jedis(IP, PORT);
+                Date nextDate = getNextDate(jedis.get("excDate"));
+                jedis.set("excDate", String.valueOf(nextDate.getTime()));
+                RedisToolForDelayQueen.pushQueenIfTime(jedis, nextDate);
+                jedis.close();
             }
         }, 0, 10000);
+    }
 
+    public void popQueen() {
         new Timer().schedule(new TimerTask() {
             @Override
             public void run() {
-
-                Jedis jedis2 = new Jedis(IP, PORT);
-                Order order = RedisToolForDelayQueen.popQueen(jedis2);
+                Jedis jedis = new Jedis(IP, PORT);
+                Order order = RedisToolForDelayQueen.popQueen(jedis);
                 if(null != order) {
                     RedisToolForDelayQueen.doNotify(order);
                 }
-                jedis2.close();
+                jedis.close();
             }
         }, 0, 1000);
-
-        while(true) {}
     }
+
 
 }
